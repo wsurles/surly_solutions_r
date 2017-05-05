@@ -1,0 +1,53 @@
+---
+title: "purr examples"
+author: "William Surles"
+date: "February 15, 2016"
+output: 
+  html_document:
+    self_contained: yes
+    theme: flatly
+---
+
+Libraries used
+
+```{r, message=F}
+library(purrr)
+library(ggplot2)
+```
+
+
+## A simple purrr example
+Here is a simple purrr example that splits a dataframe into a list and performs
+operations on the df in each list separately
+
+```{r, cache=T}
+mtcars %>%
+  split(.$cyl) %>%
+  map(~ lm(mpg ~ wt, data = .)) %>%
+  map(summary) %>%
+  map_dbl("r.squared")
+
+```
+
+Wow, thats pretty cool yeah.
+
+You can even get more complex here and create charts!
+
+## A cooler purrr example
+```{r, cache=T}
+library(gridExtra)
+
+p <- mtcars %>%
+  split(.$am) %>%
+  map( ~ ggplot(data=.x, aes(x=wt, y=mpg, colour=as.factor(cyl))) +
+         geom_point()
+       )
+p
+```
+
+You can split a data frame based on a variable into separate list elements, 
+then pass that to a plot function. Each df in the list elements will be ploted.
+Thats very cool. 
+
+I tried for a little bit to arange these in columns with marrangeGrobs but could 
+not quite figure out how to adjust the widths. This is fine for now as an example.

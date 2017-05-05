@@ -1,0 +1,223 @@
+---
+title: "dplyr vs apply functions"
+author: "William Surles"
+date: "February 15, 2016"
+output: 
+  html_document:
+    self_contained: yes
+    theme: flatly
+---
+
+This document examines the apply functions as taught in the datacamp course 
+'Intermediate R' and how to complete the exercises with dplyr and other libraries.
+
+I think these lessons are great for learning the basics of apply functions.
+However, Hadley Wickham has created many R libraries that allow an analyst to 
+do this same work with much cleaner code, like dplyr and purrr.
+There are also libraries that make working with strings more consistent, like stringr.
+
+This is meant to be a companion to the apply function exercises in the Intermediate R
+class. 
+
+Why are these libraries better?
+
+  - First, becuse they have more consistent function names so it will be easier for 
+you to remember them. 
+  - Second, they can chain and manipulate dataframes or lists in a much clearner code format.
+    - Its one chunck of code that an analyst can read in sequence, instead of many separate chuncks
+of code where you have to assign the outcome to new variable names. 
+    - Having to assign your outocme to a variable at each step takes extra thought for the developer to make names or gets messy if its var1, var2, var3. 
+    - A future analyst also has to look through all the code, not intuitivelly knowing what 
+varibales are just temporary and which are actually important. 
+    - With dply and purr you can do all the steps in one chunck and then assign the outcome to one variable which is important.
+
+First, lets load some libraries that we will use here.
+
+```{r, message=F}
+library(dplyr)
+library(purrr)
+library(stringr)
+library(ggplot2)
+```
+
+## "Use lapply with a built-in R function" Result
+Lets look at the first exercise with lapply. 
+This is the correct code for the exercise.
+
+```{r, cache=T}
+# The vector pioneers has already been created for you
+pioneers <- c("GAUSS:1777", "BAYES:1702", "PASCAL:1623", "PEARSON:1857")
+
+# Split names from birth year: split_math
+split_math <- strsplit(pioneers, ":")
+
+# Convert to lowercase strings: split_low
+split_low <- lapply(split_math, tolower)
+
+# Take a look at the structure of split_low
+str(split_low)
+
+```
+
+Thats fine and all, but it would be really nice if we could just do this all in 
+one code chunk
+
+## Using purrr and stringr
+This is how I would redo it. 
+
+```{r, cache=T}
+
+## This is cool and stringr is a great package for working with strings
+## It does not however acieve what I want
+## Wait actually it does because it splits the string
+pioneers <- c("GAUSS:1777", "BAYES:1702", "PASCAL:1623", "PEARSON:1857")
+
+split_low <- pioneers %>% 
+  str_split(":") %>% 
+  map(str_to_lower)
+
+str(split_low)
+
+```
+
+First, I am using [stringr](https://cran.r-project.org/web/packages/stringr/stringr.pdf) 
+functions. They are more consistent and I recommend 
+checking out and using this package for string manipulations. 
+
+Second, using [purrr](https://github.com/hadley/purrr) makes this way better. 
+purrr allows me to use chains, so the output of the first function can be passed 
+to the next easily. Its assumed as the first variable. 
+This way the analyst can see you are starting with the pioneers vector and then 
+performing functions on it and they can easily read left to right or top to bottom.
+They do not need to go find the start of the function string somewhere in the middle
+of the code glob. Its simple here but I have often seen many functions nested together.
+Its so hard to easily read whats happening that way. 
+
+The map function works like the lapply. 
+It takes the object passed through the chain as the first argument (the list we 
+just split) and applies the function that we specify to all elements in the list. 
+
+## Use lapply with your own function Result
+
+```{r}
+# Code from previous exercise:
+pioneers <- c("GAUSS:1777", "BAYES:1702", "PASCAL:1623", "PEARSON:1857")
+split <- strsplit(pioneers, split = ":")
+split_low <- lapply(split, tolower)
+
+# Write function select_first()
+select_first <- function(x) {
+  return(x[1])
+}
+
+# Apply select_first() over split_low: names
+names <- lapply(split_low, select_first)
+
+# Write function select_second()
+select_second <- function(x) {
+  return(x[2])
+}
+
+# Apply select_second() over split_low: years
+years <- lapply(split_low, select_second)
+```
+
+## Redo Using purrr and stringr
+This is how I would redo it. 
+
+```{r, cache=T}
+
+pioneers <- c("GAUSS:1777", "BAYES:1702", "PASCAL:1623", "PEARSON:1857")
+split_low <- pioneers %>% str_split(":") %>% map(str_to_lower)
+
+names <- split_low %>% map(function(x) x[1])
+years <- split_low %>% map(function(x) x[2])
+```
+
+With purrr you can pass functions directly to the map. In this case, where we
+just want to pull out a specified element this makes a lot of sense and its nicer
+to have the function right there so you can see whats happening. 
+But if it were a more complex function than you could definite it separately and 
+call it the same way we call str_to_lower
+
+However, I don't really like any of this because its taking someting simple
+and making it harder by putting it into a list. 
+A better way to do this altogether is to use str_split_fixed (in stringr) 
+to put the result into columns instead of a list. 
+Then you can put the values into a data frame and run any functions you want 
+on the individual columns. 
+
+In the exercise we are actually running tolower on the numbers because it thinks
+they are characters. It does not do anything here, but in other cases 
+you many not want to run a function on all the values in the list. Having
+the data split into a dataframe first thing will make manipulation much more
+straight forward and easier to control.
+
+
+```{r, cache=T}
+df <- pioneers %>% 
+  str_split_fixed(":", n=2) %>%
+  data.frame() %>%
+  mutate(
+    names = str_to_lower(as.character(X1)), 
+    years = as.numeric(X2)
+    ) %>%
+  select(names,years)
+  
+str(df)
+```
+
+However, if you do have a reason to map the functions to the list then
+you can pull the elements in each list into columns of a data frame with
+`do.call` and `rbind` once you are finished.
+
+```{r}
+df <- data.frame(do.call('rbind', split_low))
+df
+```
+
+Lets keep goin with the exercises. I'm going to go a little faster here and just
+go through the solutions with purrr.
+
+You can pass values through with the ~ symbol to an equation and reference the 
+list passed through with a `.`. This is the same as the anonymous function.
+
+```{r, cache=T}
+names <- split_low %>% map(function(x) x[1])
+names <- split_low %>% map(~ .[1])
+```
+
+You can also pass other function values through just like with lapply
+```{r, cache=T}
+select_el <- function(x,pos) {return(x[pos])}
+names <- split_low %>% map(select_el, pos=1)
+```
+
+What about other things in lists that you can't split into a dataframe.
+I can easily still use purrr for this. Here we can apply the min and max functions
+to the temp variable with purrr. The main issue with sapply is that it may convert
+the results to a vetor or it may not. This can be problematic for code. With purrr
+you know that you will have a list as the output and can code accordingly.
+
+```{r, cache=T}
+## This recreates the temp car used in the sapply exercises
+temp <- list(c(3,7,9,6,-1),
+             c(6,9,12,13,5),
+             c(4,8,3,-1,-3),
+             c(1,4,7,2,-2),
+             c(5,7,9,4,2),
+             c(-3,5,8,9,4),
+             c(3,6,9,4,1))
+
+temp %>% map(min)
+temp %>% map(max)
+
+```
+
+
+
+## More Resources
+  - [purrr 0.1.0 article on rbloggers](http://www.r-bloggers.com/purrr-0-1-0/)
+  - [stringr vignette](https://cran.r-project.org/web/packages/stringr/vignettes/stringr.html)
+  - I'll cover more with purrr in this document.[link to another markdown here]
+
